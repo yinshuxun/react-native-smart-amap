@@ -33,14 +33,15 @@ import com.amap.api.maps2d.model.MarkerOptions;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.reactnativecomponent.amap.util.SensorEventHelper;
 
+import java.util.HashMap;
+
 import static com.amap.api.maps2d.AMapOptions.LOGO_POSITION_BOTTOM_RIGHT;
 import static com.amap.api.maps2d.AMapOptions.ZOOM_POSITION_RIGHT_CENTER;
-
-
 
 
 public class RCTAMapView extends FrameLayout implements LocationSource, AMapLocationListener, AMap.OnCameraChangeListener {
@@ -110,7 +111,7 @@ public class RCTAMapView extends FrameLayout implements LocationSource, AMapLoca
         /**
          * 处理中心点控件位置
          */
-        if(centerMarker !=null && centerMarker != "") {
+        if (centerMarker != null && centerMarker != "") {
             HEIGHT = getHeight();
             WIDTH = getWidth();
             LayoutParams params = (LayoutParams) CenterView.getLayoutParams();
@@ -148,7 +149,7 @@ public class RCTAMapView extends FrameLayout implements LocationSource, AMapLoca
         this.addView(MAPVIEW);
         MAPVIEW.onCreate(CONTEXT.getCurrentActivity().getIntent().getExtras());
 
-        if(centerMarker !=null && centerMarker != "") {
+        if (centerMarker != null && centerMarker != "") {
             CenterView.setLayoutParams(new ViewGroup.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
             CenterView.setImageResource(getImageId(centerMarker));
             this.addView(CenterView, 1);
@@ -198,9 +199,31 @@ public class RCTAMapView extends FrameLayout implements LocationSource, AMapLoca
      * @param mLocMarker
      */
     private void addLocationMarker(LatLng latLng, float RADIUS, Marker mLocMarker) {
-//        addCircle(latLng, RADIUS);//添加定位精度圆
-//        addMarker(latLng);//添加定位图标
-//        mSensorHelper.setCurrentMarker(mLocMarker);//定位图标旋转
+        addCircle(latLng, RADIUS);//添加定位精度圆
+        addMarker(latLng);//添加定位图标
+
+        AMAP.setOnMarkerClickListener(new AMap.OnMarkerClickListener() {
+            // marker 对象被点击时回调的接口
+            // 返回 true 则表示接口已响应事件，否则返回false
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                ReactContext reactContext = (ReactContext) getContext();
+                reactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
+                        getId(),
+                        "onClickMarker",
+                        Arguments.createMap());
+
+//                addMarkersToMap(new LatLng(32.167181,118.705544),"ceshi");
+//                addMarkersToMap(new LatLng(32.164048,118.713557),"ceshi");
+                if (marker.isInfoWindowShown()) {
+                    marker.hideInfoWindow();
+                } else {
+                    marker.showInfoWindow();
+                }
+                return false;
+            }
+        });
+        mSensorHelper.setCurrentMarker(mLocMarker);//定位图标旋转
     }
 
     /**
@@ -257,7 +280,6 @@ public class RCTAMapView extends FrameLayout implements LocationSource, AMapLoca
      */
     @Override
     public void onWindowFocusChanged(boolean hasWindowFocus) {
-
         super.onWindowFocusChanged(hasWindowFocus);
 
         if (hasWindowFocus) {
@@ -328,20 +350,30 @@ public class RCTAMapView extends FrameLayout implements LocationSource, AMapLoca
      */
     public void setCenterLocation(double latitude, double longitude) {
         LatLng latlng = new LatLng(latitude, longitude);
-        AMAP.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, (float)zoomLevel));
+        AMAP.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, (float) zoomLevel));
 //    addMarkersToMap(latlng);
     }
 
     /**
      * 在地图上添加marker
      */
-    private void addMarkersToMap(LatLng latlng) {
+    public void addMarkersToMap(LatLng latlng) {
 
         markerOption = new MarkerOptions().icon(BitmapDescriptorFactory
                 .defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
                 .position(latlng)
                 .draggable(true);
         AMAP.addMarker(markerOption);
+    }
+
+    public void addMarkersToMap(LatLng latlng, String title) {
+
+        markerOption = new MarkerOptions().icon(BitmapDescriptorFactory
+                .defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                .position(latlng)
+                .title(title)
+                .draggable(true);
+        Marker marker = AMAP.addMarker(markerOption);
     }
 
 
@@ -412,7 +444,6 @@ public class RCTAMapView extends FrameLayout implements LocationSource, AMapLoca
 
         mLocMarker = AMAP.addMarker(options);
     }
-
 
     @Override
     public void activate(OnLocationChangedListener listener) {
